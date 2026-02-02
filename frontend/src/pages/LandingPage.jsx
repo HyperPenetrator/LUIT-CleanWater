@@ -35,6 +35,10 @@ export default function LandingPage() {
       setAreaStatus(response.data.status)
     } catch (error) {
       console.error('Error fetching area status:', error)
+      console.error('Backend error details:', error.response?.data)
+      if (error.response?.data?.traceback) {
+        console.error('Full traceback:', error.response.data.traceback)
+      }
       setAreaStatus('unknown')
     }
   }
@@ -45,6 +49,10 @@ export default function LandingPage() {
       setActiveReports(Object.values(response.data.data || {}))
     } catch (error) {
       console.error('Error fetching active reports:', error)
+      console.error('Backend error details:', error.response?.data)
+      if (error.response?.data?.traceback) {
+        console.error('Full traceback:', error.response.data.traceback)
+      }
     }
   }
 
@@ -54,6 +62,10 @@ export default function LandingPage() {
       setReportedIssues(Object.values(response.data.data || {}))
     } catch (error) {
       console.error('Error fetching reported issues:', error)
+      console.error('Backend error details:', error.response?.data)
+      if (error.response?.data?.traceback) {
+        console.error('Full traceback:', error.response.data.traceback)
+      }
     }
   }
 
@@ -63,6 +75,10 @@ export default function LandingPage() {
       setStatistics(response.data)
     } catch (error) {
       console.error('Error fetching statistics:', error)
+      console.error('Backend error details:', error.response?.data)
+      if (error.response?.data?.traceback) {
+        console.error('Full traceback:', error.response.data.traceback)
+      }
     }
   }
 
