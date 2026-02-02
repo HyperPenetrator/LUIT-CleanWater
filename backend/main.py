@@ -2,6 +2,9 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
+import logging
+import traceback
+from datetime import datetime
 
 # Import routes
 from routes.auth import auth_bp
@@ -13,6 +16,10 @@ from routes.reporting import reporting_bp
 load_dotenv()
 
 app = Flask(__name__)
+
+# Enable detailed logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Enable CORS with simple setup
 CORS(app, 
@@ -36,6 +43,24 @@ app.register_blueprint(reporting_bp, url_prefix='/api/reporting')
 def health_check():
     """Health check endpoint"""
     return jsonify({'status': 'healthy', 'message': 'LUIT Clean Water Backend is running'}), 200
+
+@app.route('/api/debug/firebase', methods=['GET'])
+def debug_firebase():
+    """Debug Firebase initialization"""
+    try:
+        from services.firebase_service import firebase_service
+        logger.info("Firebase service initialized successfully")
+        return jsonify({
+            'status': 'Firebase initialized',
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        logger.error(f"Firebase initialization error: {str(e)}", exc_info=True)
+        return jsonify({
+            'error': 'Firebase initialization failed',
+            'details': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
 
 @app.errorhandler(404)
 def not_found(error):

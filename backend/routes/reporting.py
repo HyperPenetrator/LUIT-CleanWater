@@ -2,6 +2,10 @@ from flask import Blueprint, request, jsonify
 from services.firebase_service import firebase_service
 from datetime import datetime
 import math
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 
 reporting_bp = Blueprint('reporting', __name__)
 
@@ -61,7 +65,8 @@ def submit_report():
         }), 201
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        logger.error(f"Error submitting report: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 400
 
 @reporting_bp.route('/nearby-reports', methods=['GET'])
 def get_nearby_reports():
@@ -139,7 +144,8 @@ def get_reported_issues():
         }), 200
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        logger.error(f"Error fetching reported issues: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 400
 
 @reporting_bp.route('/format-sms', methods=['GET'])
 def format_sms():

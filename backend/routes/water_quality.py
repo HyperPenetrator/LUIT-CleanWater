@@ -1,6 +1,10 @@
 from flask import Blueprint, request, jsonify
 from services.firebase_service import firebase_service
 from datetime import datetime
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 
 water_quality_bp = Blueprint('water_quality', __name__)
 
@@ -32,7 +36,8 @@ def get_active_reports():
         }), 200
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        logger.error(f"Error fetching active reports: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 400
 
 @water_quality_bp.route('/area-status', methods=['GET'])
 def get_area_status():
@@ -66,7 +71,8 @@ def get_area_status():
         }), 200
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        logger.error(f"Error fetching area status: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 400
 
 @water_quality_bp.route('/statistics', methods=['GET'])
 def get_statistics():
@@ -88,4 +94,5 @@ def get_statistics():
         }), 200
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        logger.error(f"Error fetching statistics: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 400
