@@ -1,6 +1,4 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from './firebase'
 
 const AuthContext = createContext()
 
@@ -10,16 +8,17 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser)
-      
-      const storedUserType = localStorage.getItem('userType')
+    // Check localStorage for auth token
+    const token = localStorage.getItem('authToken')
+    const storedUserType = localStorage.getItem('userType')
+    const email = localStorage.getItem('email')
+    
+    if (token && storedUserType && email) {
+      setUser({ email }) // Set a minimal user object
       setUserType(storedUserType)
-      
-      setLoading(false)
-    })
-
-    return unsubscribe
+    }
+    
+    setLoading(false)
   }, [])
 
   const logout = () => {
@@ -27,6 +26,7 @@ export const AuthProvider = ({ children }) => {
     setUserType(null)
     localStorage.removeItem('authToken')
     localStorage.removeItem('userType')
+    localStorage.removeItem('email')
   }
 
   return (
