@@ -11,6 +11,10 @@ export default function PHCDashboard() {
   const [activeReports, setActiveReports] = useState([])
   const [previousSolutions, setPreviousSolutions] = useState([])
   const [hotspots, setHotspots] = useState([])
+  const [reportedIssues, setReportedIssues] = useState([])
+  const [statistics, setStatistics] = useState({})
+  const [areaStatus, setAreaStatus] = useState('loading')
+  const [userLocation, setUserLocation] = useState(null)
   const [selectedReport, setSelectedReport] = useState(null)
   const [showSendModal, setShowSendModal] = useState(false)
   const [sendFormData, setSendFormData] = useState({
@@ -24,9 +28,20 @@ export default function PHCDashboard() {
   const userDistrict = localStorage.getItem('district') || 'Assam'
 
   useEffect(() => {
+    // Get user location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude } = position.coords
+        setUserLocation({ latitude, longitude })
+        fetchAreaStatus(latitude, longitude)
+      })
+    }
+    
     fetchActiveReports()
     fetchPreviousSolutions()
     fetchHotspots()
+    fetchReportedIssues()
+    fetchStatistics()
   }, [])
 
   const fetchActiveReports = async () => {
@@ -64,6 +79,41 @@ export default function PHCDashboard() {
       setHotspots(response.data.data || [])
     } catch (err) {
       console.error('Error fetching hotspots:', err)
+    }
+  }
+
+  const fetchAreaStatus = async (latitude, longitude) => {
+    try {
+      const response = await api.get('/water-quality/area-status', {
+        params: { latitude, longitude },
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      })
+      setAreaStatus(response.data.status || 'normal')
+    } catch (err) {
+      console.error('Failed to fetch area status:', err)
+      setAreaStatus('normal')
+    }
+  }
+
+  const fetchReportedIssues = async () => {
+    try {
+      const response = await api.get('/water-quality/reported-issues', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      })
+      setReportedIssues(response.data.issues || [])
+    } catch (err) {
+      console.error('Failed to fetch reported issues:', err)
+    }
+  }
+
+  const fetchStatistics = async () => {
+    try {
+      const response = await api.get('/water-quality/statistics', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
+      })
+      setStatistics(response.data || {})
+    } catch (err) {
+      console.error('Failed to fetch statistics:', err)
     }
   }
 
@@ -161,7 +211,7 @@ export default function PHCDashboard() {
       {/* Tabs */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 flex gap-8">
-          {['reports', 'solutions', 'hotspots'].map(tab => (
+          {['overview', 'reports', 'solutions', 'hotspots'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -179,6 +229,78 @@ export default function PHCDashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <div>
+            <h2 className="text-2xl font-bold mb-6 text-gray-800">Water Quality Dashboard - {userDistrict}</h2>
+            
+            {/* Area Status */}
+            <div className="mb-8 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Droplet className="text-blue-600" size={24} />
+                <h3 className="text-lg font-bold text-gray-800">Current Area Status</h3>
+              </div>
+              <p className={`text-2xl font-bold mt-2 ${
+                areaStatus === 'safe' ? 'text-green-600' :
+                areaStatus === 'warning' ? 'text-yellow-600' :
+                areaStatus === 'critical' ? 'text-red-600' :
+                'text-gray-600'
+              }`}>
+                {areaStatus === 'loading' ? 'Checking status...' : areaStatus.toUpperCase()}
+              </p>
+              {userLocation && (
+                <p className="text-sm text-gray-600 mt-2">
+                  📍 Your Location: {userLocation.latitude.toFixed(4)}, {userLocation.longitude.toFixed(4)}
+                </p>
+              )}
+            </div>
+
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="card">
+                <h3 className="text-gray-600 text-sm font-medium mb-2">Total Reports</h3>
+                <p className="text-3xl font-bold text-blue-600">{statistics.totalReports || 0}</p>
+              </div>
+              <div className="card">
+                <h3 className="text-gray-600 text-sm font-medium mb-2">Active Issues</h3>
+                <p className="text-3xl font-bold text-red-600">{statistics.activeReports || 0}</p>
+              </div>
+              <div className="card">
+                <h3 className="text-gray-600 text-sm font-medium mb-2">Clean Areas</h3>
+                <p className="text-3xl font-bold text-green-600">{statistics.cleanAreas || 0}</p>
+              </div>
+            </div>
+
+            {/* Reported Issues */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-800 mb-4">Reported Issues</h3>
+              {reportedIssues.length > 0 ? (
+                <div className="space-y-3">
+                  {reportedIssues.map((issue, idx) => (
+                    <div key={idx} className="card">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="text-orange-600 flex-shrink-0 mt-1" size={20} />
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-800">{issue.title || issue.problem}</p>
+                          <p className="text-sm text-gray-600 mt-1">{issue.description || issue.details}</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            📍 {issue.areaName || 'Unknown Area'} | {issue.reportedAt || 'Recently'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="card text-center py-8">
+                  <CheckCircle className="mx-auto text-green-600 mb-2" size={32} />
+                  <p className="text-gray-600">No reported issues in your area</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Active Reports Tab */}
         {activeTab === 'reports' && (
           <div>

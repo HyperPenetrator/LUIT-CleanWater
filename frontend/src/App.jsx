@@ -1,6 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './AuthContext'
-import LandingPage from './pages/LandingPage'
 import ReportingPage from './pages/ReportingPage'
 import LoginRegisterPage from './pages/LoginRegisterPage'
 import PHCDashboard from './pages/PHCDashboard'
@@ -26,9 +25,21 @@ const ProtectedRoute = ({ children, requiredUserType }) => {
 }
 
 function AppRoutes() {
+  const { user, userType } = useAuth()
+  
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
+      {/* Home page - redirect based on auth */}
+      <Route 
+        path="/" 
+        element={
+          user ? (
+            userType === 'phc' ? <Navigate to="/phc-dashboard" replace /> : <Navigate to="/lab-dashboard" replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        } 
+      />
       <Route path="/report" element={<ReportingPage />} />
       <Route path="/login" element={<LoginRegisterPage />} />
       <Route
