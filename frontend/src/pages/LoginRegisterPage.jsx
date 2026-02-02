@@ -6,7 +6,7 @@ import { useAuth } from '../AuthContext'
 
 export default function LoginRegisterPage() {
   const navigate = useNavigate()
-  const { logout: authLogout } = useAuth()
+  const { setAuthState } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
   const [userType, setUserType] = useState('phc') // 'phc' or 'lab'
   const [formData, setFormData] = useState({
@@ -62,6 +62,9 @@ export default function LoginRegisterPage() {
           localStorage.setItem('userType', userType)
           localStorage.setItem('email', response.data.email)
           localStorage.setItem('district', response.data.district || 'Assam')
+
+          // Manually set auth state immediately
+          setAuthState(response.data.email, userType)
 
           // Redirect immediately - the layout will handle checking auth
           if (userType === 'phc') {

@@ -24,6 +24,14 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
+  // Manual auth trigger for same-tab login
+  const setAuthState = useCallback((userEmail, uType) => {
+    if (userEmail && uType) {
+      setUser({ email: userEmail })
+      setUserType(uType)
+    }
+  }, [])
+
   useEffect(() => {
     // Initial check on mount
     checkAuth()
@@ -36,13 +44,13 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
-    // Poll localStorage every 100ms for the first second to catch login in same tab
+    // Poll localStorage every 50ms for the first 500ms to catch login in same tab
     let pollCount = 0
     const pollInterval = setInterval(() => {
       checkAuth()
       pollCount++
-      if (pollCount > 10) clearInterval(pollInterval) // Stop after 1 second
-    }, 100)
+      if (pollCount > 10) clearInterval(pollInterval) // Stop after 500ms
+    }, 50)
 
     window.addEventListener('storage', handleStorageChange)
     return () => {
@@ -61,7 +69,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, userType, loading, logout }}>
+    <AuthContext.Provider value={{ user, userType, loading, logout, setAuthState, checkAuth }}>
       {children}
     </AuthContext.Provider>
   )
