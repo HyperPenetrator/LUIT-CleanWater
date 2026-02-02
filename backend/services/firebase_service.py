@@ -1,5 +1,5 @@
 import firebase_admin
-from firebase_admin import credentials, db, storage, auth
+from firebase_admin import credentials, firestore, storage, auth
 import os
 import json
 import logging
@@ -42,106 +42,99 @@ class FirebaseService:
             else:
                 raise ValueError("Firebase credentials not found. Please set FIREBASE_PROJECT_ID and related environment variables.")
             
-            # Get database URL with fallback
-            database_url = os.getenv('FIREBASE_DATABASE_URL')
-            if not database_url and os.getenv('FIREBASE_PROJECT_ID'):
-                database_url = f"https://{os.getenv('FIREBASE_PROJECT_ID')}-default-rtdb.firebaseio.com"
-            
             # Get storage bucket with fallback
             storage_bucket = os.getenv('FIREBASE_STORAGE_BUCKET')
             if not storage_bucket and os.getenv('FIREBASE_PROJECT_ID'):
                 storage_bucket = f"{os.getenv('FIREBASE_PROJECT_ID')}.appspot.com"
             
             firebase_admin.initialize_app(cred, {
-                'databaseURL': database_url,
                 'storageBucket': storage_bucket
             })
+        
+        # Initialize Firestore client
+        self.db = firestore.client()
     
     def add_water_quality_report(self, report_data):
         """Add a water quality report"""
         import uuid
         report_id = str(uuid.uuid4())
-        ref = db.reference(f'water_quality_reports/{report_id}')
-        ref.set(report_data)
+        self.db.collection('water_quality_reports').document(report_id).set(report_data)
         return report_id
     
     def get_water_quality_reports(self, district=None):
         """Get water quality reports"""
         try:
-            ref = db.reference('water_quality_reports')
-            reports = ref.get()
+            if district:
+                docs = self.db.collection('water_quality_reports').where('district', '==', district).stream()
+            else:
+                docs = self.db.collection('water_quality_reports').stream()
             
-            if district and reports:
-                return {k: v for k, v in reports.items() if v.get('district') == district}
-            return reports or {}
+            reports = {}
+            for doc in docs:
+                reports[doc.id] = doc.to_dict()
+            return reports
         except Exception as e:
-            # Handle 404 (path doesn't exist yet) as empty data
-            if '404' in str(e) or 'NotFoundError' in str(type(e).__name__):
-                logger.info(f"Database path 'water_quality_reports' not found - returning empty results (this is normal for new databases)")
-                return {}
-            raise
+            logger.info(f"No reports found or error: {str(e)}")
+            return {}
     
     def get_active_reports(self):
         """Get active contamination reports"""
         try:
-            ref = db.reference('water_quality_reports')
-            reports = ref.get()
+            docs = self.db.collection('water_quality_reports')\
+                .where('status', '==', 'contaminated')\
+                .where('active', '==', True)\
+                .stream()
             
-            if reports:
-                return {k: v for k, v in reports.items() if v.get('status') == 'contaminated' and v.get('active') is True}
-            return {}
+            reports = {}
+            for doc in docs:
+                reports[doc.id] = doc.to_dict()
+            return reports
         except Exception as e:
-            # Handle 404 (path doesn't exist yet) as empty data
-            if '404' in str(e) or 'NotFoundError' in str(type(e).__name__):
-                logger.info(f"Database path 'water_quality_reports' not found - returning empty results (this is normal for new databases)")
-                return {}
-            raise
+            logger.info(f"No active reports found or error: {str(e)}")
+            return {}
     
     def update_report_status(self, report_id, status):
         """Update report status"""
-        ref = db.reference(f'water_quality_reports/{report_id}')
-        ref.update({'status': status})
+        self.db.collection('water_quality_reports').document(report_id).update({'status': status})
         return True
     
     def add_phc_user(self, user_data):
         """Add PHC user"""
         import uuid
         user_id = str(uuid.uuid4())
-        ref = db.reference(f'users/phc/{user_id}')
-        ref.set(user_data)
+        self.db.collection('users').document('phc').collection('users').document(user_id).set(user_data)
         return user_id
     
     def add_lab_user(self, user_data):
         """Add Lab user"""
         import uuid
         user_id = str(uuid.uuid4())
-        ref = db.reference(f'users/lab/{user_id}')
-        ref.set(user_data)
+        self.db.collection('users').document('lab').collection('users').document(user_id).set(user_data)
         return user_id
     
     def get_phc_by_email(self, email):
         """Get PHC by email"""
         try:
-            ref = db.reference('users/phc')
-            users = ref.order_by_child('email').equal_to(email).get()
-            return users
+            docs = self.db.collection('users').document('phc').collection('users').where('email', '==', email).stream()
+            users = {}
+            for doc in docs:
+                users[doc.id] = doc.to_dict()
+            return users if users else None
         except Exception as e:
-            if '404' in str(e) or 'NotFoundError' in str(type(e).__name__):
-                logger.info(f"Database path 'users/phc' not found - returning None")
-                return None
-            raise
+            logger.info(f"No PHC user found: {str(e)}")
+            return None
     
     def get_lab_by_email(self, email):
         """Get Lab by email"""
         try:
-            ref = db.reference('users/lab')
-            users = ref.order_by_child('email').equal_to(email).get()
-            return users
+            docs = self.db.collection('users').document('lab').collection('users').where('email', '==', email).stream()
+            users = {}
+            for doc in docs:
+                users[doc.id] = doc.to_dict()
+            return users if users else None
         except Exception as e:
-            if '404' in str(e) or 'NotFoundError' in str(type(e).__name__):
-                logger.info(f"Database path 'users/lab' not found - returning None")
-                return None
-            raise
+            logger.info(f"No Lab user found: {str(e)}")
+            return None
     
     def upload_file(self, file_path, destination_path):
         """Upload file to Firebase Storage"""
@@ -154,23 +147,23 @@ class FirebaseService:
         """Add lab solution"""
         import uuid
         solution_id = str(uuid.uuid4())
-        ref = db.reference(f'lab_solutions/{solution_id}')
-        ref.set(solution_data)
+        self.db.collection('lab_solutions').document(solution_id).set(solution_data)
         return solution_id
     
     def get_lab_solutions(self, district=None):
         """Get lab solutions"""
         try:
-            ref = db.reference('lab_solutions')
-            solutions = ref.get()
+            if district:
+                docs = self.db.collection('lab_solutions').where('district', '==', district).stream()
+            else:
+                docs = self.db.collection('lab_solutions').stream()
             
-            if district and solutions:
-                return {k: v for k, v in solutions.items() if v.get('district') == district}
-            return solutions or {}
+            solutions = {}
+            for doc in docs:
+                solutions[doc.id] = doc.to_dict()
+            return solutions
         except Exception as e:
-            if '404' in str(e) or 'NotFoundError' in str(type(e).__name__):
-                logger.info(f"Database path 'lab_solutions' not found - returning empty results")
-                return {}
-            raise
+            logger.info(f"No lab solutions found: {str(e)}")
+            return {}
 
 firebase_service = FirebaseService()
