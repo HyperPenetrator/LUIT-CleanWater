@@ -102,38 +102,38 @@ class FirebaseService:
         """Add PHC user"""
         import uuid
         user_id = str(uuid.uuid4())
-        self.db.collection('users').document('phc').collection('users').document(user_id).set(user_data)
+        self.db.collection('phc_users').document(user_id).set(user_data)
         return user_id
     
     def add_lab_user(self, user_data):
         """Add Lab user"""
         import uuid
         user_id = str(uuid.uuid4())
-        self.db.collection('users').document('lab').collection('users').document(user_id).set(user_data)
+        self.db.collection('lab_users').document(user_id).set(user_data)
         return user_id
     
     def get_phc_by_email(self, email):
         """Get PHC by email"""
         try:
-            docs = self.db.collection('users').document('phc').collection('users').where('email', '==', email).stream()
+            docs = self.db.collection('phc_users').where('email', '==', email).stream()
             users = {}
             for doc in docs:
                 users[doc.id] = doc.to_dict()
             return users if users else None
         except Exception as e:
-            logger.info(f"No PHC user found: {str(e)}")
+            logger.error(f"Error getting PHC user: {str(e)}", exc_info=True)
             return None
     
     def get_lab_by_email(self, email):
         """Get Lab by email"""
         try:
-            docs = self.db.collection('users').document('lab').collection('users').where('email', '==', email).stream()
+            docs = self.db.collection('lab_users').where('email', '==', email).stream()
             users = {}
             for doc in docs:
                 users[doc.id] = doc.to_dict()
             return users if users else None
         except Exception as e:
-            logger.info(f"No Lab user found: {str(e)}")
+            logger.error(f"Error getting Lab user: {str(e)}", exc_info=True)
             return None
     
     def upload_file(self, file_path, destination_path):
