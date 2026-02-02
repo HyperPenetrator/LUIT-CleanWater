@@ -14,19 +14,12 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# CORS configuration - allow Vercel frontend
-CORS(app, resources={
-    r"/*": {
-        "origins": [
-            "https://luit-clean-water.vercel.app",
-            "http://localhost:3000",
-            "http://localhost:5173"
-        ],
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
-    }
-})
+# Enable CORS with simple setup
+CORS(app, 
+     origins=["https://luit-clean-water.vercel.app", "http://localhost:3000", "http://localhost:5173"],
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization"],
+     supports_credentials=True)
 
 # Configuration
 app.config['ENV'] = os.getenv('FLASK_ENV', 'development')
