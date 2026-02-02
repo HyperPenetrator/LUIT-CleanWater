@@ -108,7 +108,7 @@ export default function PHCDashboard() {
 
   const fetchReportedIssues = async () => {
     try {
-      const response = await api.get('/water-quality/reported-issues', {
+      const response = await api.get('/reporting/reported-issues', {
         headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` }
       })
       setReportedIssues(response.data.issues || [])

@@ -140,7 +140,7 @@ def get_reported_issues():
         
         return jsonify({
             'success': True,
-            'data': issues
+            'issues': issues
         }), 200
     
     except Exception as e:

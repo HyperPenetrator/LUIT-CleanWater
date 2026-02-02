@@ -96,3 +96,21 @@ def get_statistics():
     except Exception as e:
         logger.error(f"Error fetching statistics: {str(e)}", exc_info=True)
         return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 400
+
+@water_quality_bp.route('/reported-issues', methods=['GET'])
+def get_reported_issues_alias():
+    """Get reported issues (alias to reporting endpoint)"""
+    try:
+        district = request.args.get('district')
+        
+        reports = firebase_service.get_water_quality_reports(district)
+        issues = [{'id': k, **v} for k, v in (reports or {}).items()]
+        
+        return jsonify({
+            'success': True,
+            'issues': issues
+        }), 200
+    
+    except Exception as e:
+        logger.error(f"Error fetching reported issues: {str(e)}", exc_info=True)
+        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 400
