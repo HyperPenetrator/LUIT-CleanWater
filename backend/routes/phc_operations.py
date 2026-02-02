@@ -15,7 +15,8 @@ def get_active_reports_by_district(district):
     """Get active reports for PHC's district"""
     try:
         reports = firebase_service.get_water_quality_reports(district)
-        active_reports = {k: v for k, v in reports.items() if v.get('status') == 'contaminated' and v.get('active') is True}
+        # Show reports with status 'reported' or 'contaminated' that are still active
+        active_reports = {k: v for k, v in reports.items() if v.get('status') in ['reported', 'contaminated'] and v.get('active') is True}
         
         return jsonify({
             'success': True,
