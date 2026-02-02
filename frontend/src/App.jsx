@@ -28,31 +28,36 @@ const ProtectedRoute = ({ children, requiredUserType }) => {
 function AppRoutes() {
   const { user, userType } = useAuth()
   
-  return (
-    <Routes>
-      {/* Home page - Landing page (public) */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={user ? <Navigate to="/phc-dashboard" replace /> : <LoginRegisterPage />} />
-      <Route path="/report" element={<ReportingPage />} />
-      <Route
-        path="/phc-dashboard"
-        element={
-          <ProtectedRoute requiredUserType="phc">
-            <PHCDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lab-dashboard"
-        element={
-          <ProtectedRoute requiredUserType="lab">
-            <LabDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
-  )
+  try {
+    return (
+      <Routes>
+        {/* Home page - Landing page (public) */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={user ? <Navigate to="/phc-dashboard" replace /> : <LoginRegisterPage />} />
+        <Route path="/report" element={<ReportingPage />} />
+        <Route
+          path="/phc-dashboard"
+          element={
+            <ProtectedRoute requiredUserType="phc">
+              <PHCDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/lab-dashboard"
+          element={
+            <ProtectedRoute requiredUserType="lab">
+              <LabDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    )
+  } catch (error) {
+    console.error('AppRoutes error:', error)
+    return <div className="flex items-center justify-center h-screen text-red-600">Error loading page: {error.message}</div>
+  }
 }
 
 function App() {

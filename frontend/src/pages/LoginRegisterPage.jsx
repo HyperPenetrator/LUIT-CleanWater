@@ -19,6 +19,10 @@ export default function LoginRegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  if (!navigate) {
+    return <div className="flex items-center justify-center h-screen text-red-600">Error: Navigation not available</div>
+  }
+
   const assam_districts = [
     'Assam', 'Barpeta', 'Bongaigaon', 'Cachar', 'Darrang',
     'Dhemaji', 'Dhubri', 'Dibrugarh', 'Goalpara', 'Golaghat',
