@@ -21,19 +21,8 @@ export default function PHCDashboard() {
     description: '',
     phcNotes: ''
   })
-  const [reportFormData, setReportFormData] = useState({
-    problem: '',
-    latitude: '',
-    longitude: '',
-    severity: 'medium',
-    sourceType: 'domestic',
-    areaName: '',
-    pinCode: '',
-    district: ''
-  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
 
   const userEmail = localStorage.getItem('email') || 'PHC User'
   const userDistrict = localStorage.getItem('district') || 'Assam'
@@ -179,55 +168,6 @@ export default function PHCDashboard() {
     }
   }
 
-  const handleReportSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    setSuccess(false)
-
-    try {
-      if (!reportFormData.problem || !reportFormData.latitude || !reportFormData.longitude) {
-        setError('Please fill in all required fields')
-        setLoading(false)
-        return
-      }
-
-      const response = await api.post('/reporting/submit-report', {
-        problem: reportFormData.problem,
-        latitude: parseFloat(reportFormData.latitude),
-        longitude: parseFloat(reportFormData.longitude),
-        severity: reportFormData.severity,
-        sourceType: reportFormData.sourceType,
-        areaName: reportFormData.areaName,
-        pinCode: reportFormData.pinCode,
-        district: userDistrict
-      })
-
-      if (response.data.success) {
-        setSuccess(true)
-        setReportFormData({
-          problem: '',
-          latitude: '',
-          longitude: '',
-          severity: 'medium',
-          sourceType: 'domestic',
-          areaName: '',
-          pinCode: '',
-          district: ''
-        })
-        setTimeout(() => {
-          setSuccess(false)
-          setActiveTab('reports')
-          fetchActiveReports()
-        }, 2000)
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to submit report')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleLogout = () => {
     logout()
     navigate('/login')
@@ -271,7 +211,7 @@ export default function PHCDashboard() {
       {/* Tabs */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 flex gap-8">
-          {['overview', 'report', 'reports', 'solutions', 'hotspots'].map(tab => (
+          {['overview', 'reports', 'solutions', 'hotspots'].map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -358,208 +298,6 @@ export default function PHCDashboard() {
                 </div>
               )}
             </div>
-          </div>
-        )}
-
-        {/* Report Tab */}
-        {activeTab === 'report' && (
-          <div>
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Report Water Quality Issue</h2>
-            
-            {success && (
-              <div className="max-w-2xl mx-auto mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
-                ✓ Report submitted successfully!
-              </div>
-            )}
-
-            {error && (
-              <div className="max-w-2xl mx-auto mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleReportSubmit} className="max-w-2xl mx-auto">
-              <div className="card space-y-6">
-                {/* Problem Description */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Problem Description *
-                  </label>
-                  <textarea
-                    name="problem"
-                    value={reportFormData.problem}
-                    onChange={(e) => setReportFormData(prev => ({ ...prev, problem: e.target.value }))}
-                    placeholder="Describe the water quality issue..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows="4"
-                    required
-                  />
-                </div>
-
-                {/* Area Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Area Name
-                  </label>
-                  <input
-                    type="text"
-                    name="areaName"
-                    value={reportFormData.areaName}
-                    onChange={(e) => setReportFormData(prev => ({ ...prev, areaName: e.target.value }))}
-                    placeholder="Enter area name"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Severity */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Severity Level *
-                  </label>
-                  <select
-                    name="severity"
-                    value={reportFormData.severity}
-                    onChange={(e) => setReportFormData(prev => ({ ...prev, severity: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-
-                {/* Source Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Source Type
-                  </label>
-                  <select
-                    name="sourceType"
-                    value={reportFormData.sourceType}
-                    onChange={(e) => setReportFormData(prev => ({ ...prev, sourceType: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="domestic">Domestic</option>
-                    <option value="industrial">Industrial</option>
-                    <option value="agricultural">Agricultural</option>
-                    <option value="natural">Natural</option>
-                  </select>
-                </div>
-
-                {/* Pin Code */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    PIN Code
-                  </label>
-                  <input
-                    type="text"
-                    name="pinCode"
-                    value={reportFormData.pinCode}
-                    onChange={(e) => setReportFormData(prev => ({ ...prev, pinCode: e.target.value }))}
-                    placeholder="Enter PIN code"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                {/* Location Section */}
-                <div className="border-t pt-6">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <MapPin size={20} /> Location Marker
-                  </h3>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Latitude *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.000001"
-                        name="latitude"
-                        value={reportFormData.latitude}
-                        onChange={(e) => setReportFormData(prev => ({ ...prev, latitude: e.target.value }))}
-                        placeholder="e.g., 26.1445"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Longitude *
-                      </label>
-                      <input
-                        type="number"
-                        step="0.000001"
-                        name="longitude"
-                        value={reportFormData.longitude}
-                        onChange={(e) => setReportFormData(prev => ({ ...prev, longitude: e.target.value }))}
-                        placeholder="e.g., 91.7898"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition((position) => {
-                          setReportFormData(prev => ({
-                            ...prev,
-                            latitude: position.coords.latitude.toFixed(6),
-                            longitude: position.coords.longitude.toFixed(6)
-                          }))
-                        })
-                      }
-                    }}
-                    className="w-full px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium mb-4"
-                  >
-                    📍 Use Current Location
-                  </button>
-
-                  {reportFormData.latitude && reportFormData.longitude && (
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="text-sm text-gray-700">
-                        <strong>Pin Location:</strong><br />
-                        Latitude: {reportFormData.latitude}<br />
-                        Longitude: {reportFormData.longitude}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Submit Button */}
-                <div className="flex gap-4">
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
-                  >
-                    {loading ? 'Submitting...' : '🚀 Submit Report to Lab'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReportFormData({
-                        problem: '',
-                        latitude: '',
-                        longitude: '',
-                        severity: 'medium',
-                        sourceType: 'domestic',
-                        areaName: '',
-                        pinCode: '',
-                        district: ''
-                      })
-                      setError('')
-                    }}
-                    className="px-6 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-medium"
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-            </form>
           </div>
         )}
 
