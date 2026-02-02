@@ -25,8 +25,8 @@ def submit_report():
         data = request.get_json()
         
         problem = data.get('problem')
-        latitude = data.get('latitude', type=float)
-        longitude = data.get('longitude', type=float)
+        latitude = float(data.get('latitude', 0)) if data.get('latitude') else None
+        longitude = float(data.get('longitude', 0)) if data.get('longitude') else None
         severity = data.get('severity')  # low, medium, high
         source_type = data.get('sourceType')  # domestic, industrial, agricultural, etc.
         area_name = data.get('areaName')
