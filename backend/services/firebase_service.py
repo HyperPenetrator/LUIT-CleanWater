@@ -9,22 +9,49 @@ class FirebaseService:
     def __init__(self):
         """Initialize Firebase app"""
         if not firebase_admin._apps:
-            # Try to load from environment variable or file
-            cred_path = os.getenv('FIREBASE_KEY_PATH', 'serviceAccountKey.json')
+            cred = None
             
+            # Try method 1: Load from file
+            cred_path = os.getenv('FIREBASE_KEY_PATH', 'serviceAccountKey.json')
             if os.path.exists(cred_path):
                 cred = credentials.Certificate(cred_path)
-            else:
-                # Try to load from environment variable
+            
+            # Try method 2: Load from FIREBASE_CREDENTIALS environment variable
+            elif os.getenv('FIREBASE_CREDENTIALS'):
                 cred_dict = os.getenv('FIREBASE_CREDENTIALS')
-                if cred_dict:
-                    cred = credentials.Certificate(json.loads(cred_dict))
-                else:
-                    raise ValueError("Firebase credentials not found")
+                cred = credentials.Certificate(json.loads(cred_dict))
+            
+            # Try method 3: Construct from individual environment variables (Railway/Vercel)
+            elif os.getenv('FIREBASE_PROJECT_ID'):
+                cred_dict = {
+                    "type": "service_account",
+                    "project_id": os.getenv('FIREBASE_PROJECT_ID'),
+                    "private_key_id": os.getenv('FIREBASE_PRIVATE_KEY_ID'),
+                    "private_key": os.getenv('FIREBASE_PRIVATE_KEY', '').replace('\\n', '\n'),
+                    "client_email": os.getenv('FIREBASE_CLIENT_EMAIL'),
+                    "client_id": os.getenv('FIREBASE_CLIENT_ID'),
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                    "client_x509_cert_url": f"https://www.googleapis.com/robot/v1/metadata/x509/{os.getenv('FIREBASE_CLIENT_EMAIL')}"
+                }
+                cred = credentials.Certificate(cred_dict)
+            else:
+                raise ValueError("Firebase credentials not found. Please set FIREBASE_PROJECT_ID and related environment variables.")
+            
+            # Get database URL with fallback
+            database_url = os.getenv('FIREBASE_DATABASE_URL')
+            if not database_url and os.getenv('FIREBASE_PROJECT_ID'):
+                database_url = f"https://{os.getenv('FIREBASE_PROJECT_ID')}-default-rtdb.firebaseio.com"
+            
+            # Get storage bucket with fallback
+            storage_bucket = os.getenv('FIREBASE_STORAGE_BUCKET')
+            if not storage_bucket and os.getenv('FIREBASE_PROJECT_ID'):
+                storage_bucket = f"{os.getenv('FIREBASE_PROJECT_ID')}.appspot.com"
             
             firebase_admin.initialize_app(cred, {
-                'databaseURL': os.getenv('FIREBASE_DATABASE_URL'),
-                'storageBucket': os.getenv('FIREBASE_STORAGE_BUCKET')
+                'databaseURL': database_url,
+                'storageBucket': storage_bucket
             })
     
     def add_water_quality_report(self, report_data):
