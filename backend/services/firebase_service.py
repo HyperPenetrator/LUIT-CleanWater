@@ -65,7 +65,7 @@ class FirebaseService:
         """Get water quality reports"""
         try:
             if district:
-                docs = self.db.collection('water_quality_reports').where('district', '==', district).stream()
+                docs = self.db.collection('water_quality_reports').where(filter=firestore.FieldFilter('district', '==', district)).stream()
             else:
                 docs = self.db.collection('water_quality_reports').stream()
             
@@ -80,10 +80,11 @@ class FirebaseService:
     def get_active_reports(self):
         """Get active contamination reports"""
         try:
-            docs = self.db.collection('water_quality_reports')\
-                .where('status', '==', 'contaminated')\
-                .where('active', '==', True)\
-                .stream()
+            docs = self.db.collection('water_quality_reports').where(
+                filter=firestore.FieldFilter('status', '==', 'contaminated')
+            ).where(
+                filter=firestore.FieldFilter('active', '==', True)
+            ).stream()
             
             reports = {}
             for doc in docs:
@@ -116,7 +117,7 @@ class FirebaseService:
         """Get PHC by email"""
         try:
             logger.info(f"Searching for PHC user with email: {email}")
-            docs = self.db.collection('phc_users').where('email', '==', email).stream()
+            docs = self.db.collection('phc_users').where(filter=firestore.FieldFilter('email', '==', email)).stream()
             users = {}
             count = 0
             for doc in docs:
@@ -144,7 +145,7 @@ class FirebaseService:
     def get_lab_by_email(self, email):
         """Get Lab by email"""
         try:
-            docs = self.db.collection('lab_users').where('email', '==', email).stream()
+            docs = self.db.collection('lab_users').where(filter=firestore.FieldFilter('email', '==', email)).stream()
             users = {}
             for doc in docs:
                 users[doc.id] = doc.to_dict()
@@ -171,7 +172,7 @@ class FirebaseService:
         """Get lab solutions"""
         try:
             if district:
-                docs = self.db.collection('lab_solutions').where('district', '==', district).stream()
+                docs = self.db.collection('lab_solutions').where(filter=firestore.FieldFilter('district', '==', district)).stream()
             else:
                 docs = self.db.collection('lab_solutions').stream()
             
