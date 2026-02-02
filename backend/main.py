@@ -16,7 +16,7 @@ app = Flask(__name__)
 
 # CORS configuration - allow Vercel frontend
 CORS(app, resources={
-    r"/api/*": {
+    r"/*": {
         "origins": [
             "https://luit-clean-water.vercel.app",
             "http://localhost:3000",
