@@ -115,10 +115,27 @@ class FirebaseService:
     def get_phc_by_email(self, email):
         """Get PHC by email"""
         try:
+            logger.info(f"Searching for PHC user with email: {email}")
             docs = self.db.collection('phc_users').where('email', '==', email).stream()
             users = {}
+            count = 0
             for doc in docs:
+                count += 1
+                logger.info(f"Found PHC user: {doc.id}")
                 users[doc.id] = doc.to_dict()
+            
+            logger.info(f"Total PHC users found: {count}")
+            
+            if not users:
+                # Try checking all documents in phc_users collection
+                logger.info("No users found with email query, checking all phc_users...")
+                all_docs = self.db.collection('phc_users').stream()
+                all_count = 0
+                for doc in all_docs:
+                    all_count += 1
+                    logger.info(f"PHC user exists: {doc.id}, email: {doc.to_dict().get('email')}")
+                logger.info(f"Total PHC users in collection: {all_count}")
+            
             return users if users else None
         except Exception as e:
             logger.error(f"Error getting PHC user: {str(e)}", exc_info=True)
