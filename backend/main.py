@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 # Enable CORS with simple setup
 CORS(app, 
-     origins=["https://luit-clean-water.vercel.app", "http://localhost:3000", "http://localhost:5173"],
+     origins=["https://luit-clean-water-plum.vercel.app", "https://luit-clean-water.vercel.app", "http://localhost:3000", "http://localhost:5173"],
      methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
      allow_headers=["Content-Type", "Authorization"],
      supports_credentials=True)
