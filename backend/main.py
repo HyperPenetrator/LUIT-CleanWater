@@ -6,6 +6,8 @@ import logging
 import traceback
 from datetime import datetime
 
+load_dotenv()
+
 # Import routes
 from routes.auth import auth_bp
 from routes.water_quality import water_quality_bp
@@ -13,7 +15,14 @@ from routes.phc_operations import phc_bp
 from routes.lab_operations import lab_bp
 from routes.reporting import reporting_bp
 
-load_dotenv()
+# Initialize Firebase immediately on startup to log any errors
+try:
+    from services.firebase_service import firebase_service
+    logger_temp = logging.getLogger('firebase_init')
+    logger_temp.info("✓ Firebase service initialized successfully on startup")
+except Exception as e:
+    logger_temp = logging.getLogger('firebase_init')
+    logger_temp.error(f"✗ Firebase initialization FAILED on startup: {str(e)}", exc_info=True)
 
 app = Flask(__name__)
 
