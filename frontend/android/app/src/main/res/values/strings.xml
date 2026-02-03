@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LUIT-Clean-Water</string>
+    <string name="title_activity_main">LUIT-Clean-Water</string>
+    <string name="package_name">com.luit.cleanwater</string>
+    <string name="custom_url_scheme">com.luit.cleanwater</string>
+</resources>
