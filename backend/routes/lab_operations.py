@@ -1,10 +1,13 @@
 from flask import Blueprint, request, jsonify
 from services.firebase_service import firebase_service
+from firebase_admin import firestore
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import os
+import logging
 
 lab_bp = Blueprint('lab', __name__)
+logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx'}
 
@@ -13,45 +16,65 @@ def allowed_file(filename):
 
 @lab_bp.route('/assignments', methods=['GET'])
 def get_assignments():
-    """Get assignments for lab"""
+    """Get assignments for lab - Uses Firestore"""
     try:
         district = request.args.get('district')
         
-        ref = firebase_service.db.reference('lab_assignments')
-        assignments = ref.get()
+        logger.info(f"Fetching lab assignments for district: {district}")
         
-        if district and assignments:
-            assignments = {k: v for k, v in assignments.items() if v.get('district') == district}
+        # Query Firestore collection
+        if district:
+            assignments_ref = firebase_service.db.collection('lab_assignments').where(
+                filter=firestore.FieldFilter('district', '==', district)
+            ).stream()
+        else:
+            assignments_ref = firebase_service.db.collection('lab_assignments').stream()
+        
+        # Convert to dictionary
+        assignments = {}
+        for doc in assignments_ref:
+            data = doc.to_dict()
+            assignments[doc.id] = data
+        
+        logger.info(f"Found {len(assignments)} lab assignments")
         
         return jsonify({
             'success': True,
-            'data': assignments or {}
+            'data': assignments
         }), 200
     
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        logger.error(f"Error fetching lab assignments: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to fetch lab assignments'
+        }), 400
 
 @lab_bp.route('/assignment/<assignment_id>', methods=['GET'])
 def get_assignment_details(assignment_id):
-    """Get assignment details"""
+    """Get assignment details - Uses Firestore"""
     try:
-        ref = firebase_service.db.reference(f'lab_assignments/{assignment_id}')
-        assignment = ref.get()
+        doc_ref = firebase_service.db.collection('lab_assignments').document(assignment_id)
+        doc = doc_ref.get()
         
-        if not assignment:
+        if not doc.exists:
             return jsonify({'error': 'Assignment not found'}), 404
         
         return jsonify({
             'success': True,
-            'data': assignment
+            'data': doc.to_dict()
         }), 200
     
     except Exception as e:
+        logger.error(f"Error fetching assignment details: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @lab_bp.route('/upload-test-result/<assignment_id>', methods=['POST'])
 def upload_test_result(assignment_id):
-    """Upload test result PDF"""
+    """Upload test result PDF - Uses Firestore"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
@@ -73,9 +96,9 @@ def upload_test_result(assignment_id):
         filepath = os.path.join(upload_folder, filename)
         file.save(filepath)
         
-        # Update assignment
-        ref = firebase_service.db.reference(f'lab_assignments/{assignment_id}')
-        ref.update({
+        # Update assignment in Firestore
+        doc_ref = firebase_service.db.collection('lab_assignments').document(assignment_id)
+        doc_ref.update({
             'testResultFile': filename,
             'testNotes': test_notes,
             'testResultUploadedAt': datetime.now().isoformat(),
@@ -89,11 +112,12 @@ def upload_test_result(assignment_id):
         }), 201
     
     except Exception as e:
+        logger.error(f"Error uploading test result: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @lab_bp.route('/upload-solution/<assignment_id>', methods=['POST'])
 def upload_solution(assignment_id):
-    """Upload solution PDF"""
+    """Upload solution PDF - Uses Firestore"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
@@ -115,13 +139,13 @@ def upload_solution(assignment_id):
         filepath = os.path.join(upload_folder, filename)
         file.save(filepath)
         
-        # Update assignment
-        ref = firebase_service.db.reference(f'lab_assignments/{assignment_id}')
-        ref.update({
+        # Update assignment in Firestore
+        doc_ref = firebase_service.db.collection('lab_assignments').document(assignment_id)
+        doc_ref.update({
             'solutionFile': filename,
             'solutionDescription': solution_description,
             'solutionUploadedAt': datetime.now().isoformat(),
-            'status': 'solution_provided'
+            'status': 'solution_uploaded'
         })
         
         return jsonify({
@@ -131,27 +155,29 @@ def upload_solution(assignment_id):
         }), 201
     
     except Exception as e:
+        logger.error(f"Error uploading solution: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @lab_bp.route('/confirm-clean/<assignment_id>', methods=['POST'])
 def confirm_clean(assignment_id):
-    """Confirm area is clean after re-testing"""
+    """Confirm area is clean after re-testing - Uses Firestore"""
     try:
         data = request.get_json()
         final_notes = data.get('finalNotes')
         
-        # Update assignment
-        ref = firebase_service.db.reference(f'lab_assignments/{assignment_id}')
-        ref.update({
-            'status': 'confirmed_clean',
+        # Update assignment in Firestore
+        doc_ref = firebase_service.db.collection('lab_assignments').document(assignment_id)
+        doc_ref.update({
+            'status': 'cleaned',
             'finalNotes': final_notes,
             'labConfirmedCleanAt': datetime.now().isoformat()
         })
         
-        # Mark report as clean
-        assignment = ref.get()
-        if assignment and 'reportId' in assignment:
-            firebase_service.update_report_status(assignment['reportId'], 'clean')
+        # Mark all associated reports as clean
+        assignment = doc_ref.get().to_dict()
+        if assignment and 'reportIds' in assignment:
+            for report_id in assignment['reportIds']:
+                firebase_service.update_report_status(report_id, 'cleaned')
         
         return jsonify({
             'success': True,
@@ -159,6 +185,7 @@ def confirm_clean(assignment_id):
         }), 200
     
     except Exception as e:
+        logger.error(f"Error confirming clean: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @lab_bp.route('/previous-solutions', methods=['GET'])
