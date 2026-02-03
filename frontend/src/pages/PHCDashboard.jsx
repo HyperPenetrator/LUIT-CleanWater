@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { LogOut, AlertTriangle, CheckCircle, MapPin, FileText, Droplet } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../AuthContext'
+import HotspotMap from '../components/HotspotMap'
 
 export default function PHCDashboard() {
   const navigate = useNavigate()
@@ -43,6 +44,14 @@ export default function PHCDashboard() {
     fetchReportedIssues()
     fetchStatistics()
     fetchSentToLabPins()
+
+    // Auto-refresh hotspots every 30 seconds
+    const hotspotsInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing hotspots...')
+      fetchHotspots()
+    }, 30000)
+
+    return () => clearInterval(hotspotsInterval)
   }, [])
 
   const fetchSentToLabPins = async () => {
@@ -514,30 +523,67 @@ export default function PHCDashboard() {
         {/* Hotspots Tab */}
         {activeTab === 'hotspots' && (
           <div>
-            <h2 className="text-2xl font-bold mb-6 text-gray-800">Water Quality Hotspots</h2>
-            {hotspots.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {hotspots.map(hotspot => (
-                  <div key={hotspot.id} className="card">
-                    <div className="flex items-center gap-3 mb-3">
-                      <MapPin className={hotspot.isActive ? 'text-red-600' : 'text-green-600'} />
-                      <h3 className="font-bold text-lg text-gray-800">{hotspot.areaName}</h3>
-                    </div>
-                    <div className="space-y-2 text-sm text-gray-600 mb-4">
-                      <p>📍 Lat: {hotspot.latitude.toFixed(4)}, Lon: {hotspot.longitude.toFixed(4)}</p>
-                      <p>⚠️ Severity: {hotspot.severity}</p>
-                      <p className={`font-medium ${hotspot.isActive ? 'text-red-600' : 'text-green-600'}`}>
-                        {hotspot.isActive ? '🔴 Active Contamination' : '🟢 Clean'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Water Quality Hotspots Map</h2>
+              <button
+                onClick={fetchHotspots}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+              >
+                🔄 Refresh Map
+              </button>
+            </div>
+            
+            {/* Map Section */}
+            <div className="mb-8">
+              <HotspotMap hotspots={hotspots} userLocation={userLocation} />
+              <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                  <p className="text-red-600 font-bold">🔴 Contaminated</p>
+                  <p className="text-red-700">{hotspots.filter(h => h.isActive).length} areas</p>
+                </div>
+                <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                  <p className="text-green-600 font-bold">🟢 Clean</p>
+                  <p className="text-green-700">{hotspots.filter(h => !h.isActive).length} areas</p>
+                </div>
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <p className="text-blue-600 font-bold">📍 Your Location</p>
+                  <p className="text-blue-700">{userLocation ? 'Tracked' : 'Not Available'}</p>
+                </div>
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <p className="text-gray-600 font-bold">📊 Total Areas</p>
+                  <p className="text-gray-700">{hotspots.length} hotspots</p>
+                </div>
               </div>
-            ) : (
-              <div className="card text-center py-12">
-                <p className="text-gray-600">No hotspots recorded</p>
-              </div>
-            )}
+            </div>
+
+            {/* List View */}
+            <div className="mt-8">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">Hotspot Details</h3>
+              {hotspots.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {hotspots.map(hotspot => (
+                    <div key={hotspot.id} className="card">
+                      <div className="flex items-center gap-3 mb-3">
+                        <MapPin className={hotspot.isActive ? 'text-red-600' : 'text-green-600'} />
+                        <h3 className="font-bold text-lg text-gray-800">{hotspot.areaName || 'Unknown Area'}</h3>
+                      </div>
+                      <div className="space-y-2 text-sm text-gray-600 mb-4">
+                        <p>📍 Lat: {hotspot.latitude.toFixed(4)}, Lon: {hotspot.longitude.toFixed(4)}</p>
+                        <p>⚠️ Severity: {hotspot.severity || 'N/A'}</p>
+                        <p className={`font-medium ${hotspot.isActive ? 'text-red-600' : 'text-green-600'}`}>
+                          {hotspot.isActive ? '🔴 Active Contamination' : '🟢 Clean'}
+                        </p>
+                        <p className="text-xs text-gray-500">Status: {hotspot.status || 'unknown'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="card text-center py-12">
+                  <p className="text-gray-600">No hotspots recorded</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
