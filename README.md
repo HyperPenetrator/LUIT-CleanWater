@@ -1,4 +1,4 @@
-# LUIT Clean Water - Hackathon Project
+# LUIT Clean Water (UI Idea #02)
 
 **🌐 Live Website:** https://luit-clean-water-plum.vercel.app/
 
