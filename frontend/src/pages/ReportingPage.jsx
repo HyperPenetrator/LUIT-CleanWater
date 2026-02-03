@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertCircle, Droplet } from 'lucide-react'
+import { AlertCircle, Droplet, Copy, MessageSquare, CheckCircle } from 'lucide-react'
 import api from '../api'
 
 export default function ReportingPage() {
@@ -10,12 +10,19 @@ export default function ReportingPage() {
     sourceType: '',
     pinCode: '',
     localityName: '',
-    district: ''
+    district: '',
+    description: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [smsFormat, setSmsFormat] = useState('')
+  const [smsCompact, setSmsCompact] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [smsInput, setSmsInput] = useState('')
+  const [smsSubmitting, setSmsSubmitting] = useState(false)
+  const [smsSuccess, setSmsSuccess] = useState(false)
+  const [smsError, setSmsError] = useState('')
 
   const assam_districts = [
     'Assam', 'Barpeta', 'Bongaigaon', 'Cachar', 'Darrang',
@@ -50,9 +57,47 @@ export default function ReportingPage() {
     }))
   }
 
-  const generateSMSFormat = () => {
-    const format = `Water Issue Report - Problem: ${formData.problem}, Source: ${formData.sourceType}, Locality: ${formData.localityName}, PIN: ${formData.pinCode}, District: ${formData.district}`
-    setSmsFormat(format)
+  const generateSMSFormat = async () => {
+    try {
+      const response = await api.post('/reporting/sms/format', formData)
+      if (response.data.success) {
+        setSmsFormat(response.data.sms_format)
+        setSmsCompact(response.data.sms_compact)
+      }
+    } catch (err) {
+      console.error('Error generating SMS format:', err)
+    }
+  }
+
+  const copySMS = (text) => {
+    navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleSMSSubmit = async (e) => {
+    e.preventDefault()
+    setSmsSubmitting(true)
+    setSmsError('')
+    setSmsSuccess(false)
+
+    try {
+      const response = await api.post('/reporting/sms/parse', {
+        sms_text: smsInput
+      })
+
+      if (response.data.success) {
+        setSmsSuccess(true)
+        setSmsInput('')
+        setTimeout(() => {
+          setSmsSuccess(false)
+        }, 3000)
+      }
+    } catch (err) {
+      setSmsError(err.response?.data?.error || 'Failed to parse SMS')
+    } finally {
+      setSmsSubmitting(false)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -226,19 +271,64 @@ export default function ReportingPage() {
             </div>
 
             {/* SMS Format Section */}
-            <div className="bg-blue-50 p-4 rounded-lg">
+            <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                <MessageSquare className="text-blue-600" />
+                📱 Offline SMS Format
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Generate SMS format to save for later. Submit when you have internet connection.
+              </p>
               <button
                 type="button"
                 onClick={generateSMSFormat}
                 className="btn-secondary mb-4"
               >
-                Generate SMS Format
+                📋 Generate SMS Format
               </button>
+              
               {smsFormat && (
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">SMS to send:</p>
-                  <div className="bg-white p-3 border border-gray-300 rounded text-sm font-mono break-words">
-                    {smsFormat}
+                <div className="space-y-4">
+                  {/* Compact Format */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold text-gray-700">Compact Format (Easy to copy)</p>
+                      <button
+                        type="button"
+                        onClick={() => copySMS(smsCompact)}
+                        className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1 font-medium"
+                      >
+                        {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
+                        {copied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <div className="bg-white p-3 border-2 border-blue-300 rounded text-sm font-mono break-words shadow-sm">
+                      {smsCompact}
+                    </div>
+                  </div>
+
+                  {/* Full Format */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold text-gray-700">Full Format (Detailed)</p>
+                      <button
+                        type="button"
+                        onClick={() => copySMS(smsFormat)}
+                        className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1 font-medium"
+                      >
+                        {copied ? <CheckCircle size={16} /> : <Copy size={16} />}
+                        {copied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
+                    <div className="bg-white p-3 border border-gray-300 rounded text-xs font-mono break-words whitespace-pre-wrap shadow-sm max-h-40 overflow-y-auto">
+                      {smsFormat}
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 border border-yellow-300 rounded p-3">
+                    <p className="text-xs text-yellow-800">
+                      💡 <strong>Tip:</strong> Copy this text and save it. When you have internet, paste it in the "Submit SMS Report" section below to submit.
+                    </p>
                   </div>
                 </div>
               )}
@@ -251,7 +341,7 @@ export default function ReportingPage() {
                 disabled={loading}
                 className="btn-success flex-1 disabled:opacity-50"
               >
-                {loading ? 'Submitting...' : 'Submit Report'}
+                {loading ? 'Submitting...' : '✓ Submit Report Online'}
               </button>
               <button
                 type="button"
@@ -260,6 +350,80 @@ export default function ReportingPage() {
               >
                 Cancel
               </button>
+            </div>
+          </form>
+        </div>
+
+        {/* SMS Submission Section */}
+        <div className="card mt-8 bg-gradient-to-br from-green-50 to-blue-50">
+          <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+            <MessageSquare className="text-green-600" size={28} />
+            Submit SMS Report
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Have an SMS format saved? Paste it here to submit your offline report.
+          </p>
+
+          <form onSubmit={handleSMSSubmit}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Paste SMS Content
+              </label>
+              <textarea
+                value={smsInput}
+                onChange={(e) => setSmsInput(e.target.value)}
+                placeholder="Paste your SMS format here... Example: WQ|781014|Health symptoms|Tube well|Bad taste"
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-sm"
+                rows="4"
+                required
+              />
+            </div>
+
+            {smsError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-600 text-sm flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  {smsError}
+                </p>
+              </div>
+            )}
+
+            {smsSuccess && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-green-600 text-sm flex items-center gap-2">
+                  <CheckCircle size={16} />
+                  SMS report submitted successfully!
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-4">
+              <button
+                type="submit"
+                disabled={smsSubmitting}
+                className="btn-success flex-1 disabled:opacity-50"
+              >
+                {smsSubmitting ? 'Processing...' : '📤 Submit SMS Report'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSmsInput('')}
+                className="btn-secondary"
+              >
+                Clear
+              </button>
+            </div>
+
+            <div className="mt-4 bg-blue-50 border border-blue-200 rounded p-3">
+              <p className="text-xs text-blue-800">
+                <strong>Supported Formats:</strong>
+              </p>
+              <p className="text-xs text-blue-700 mt-1 font-mono">
+                • Compact: WQ|PINCODE|ISSUE|SOURCE|DESCRIPTION
+              </p>
+              <p className="text-xs text-blue-700 font-mono">
+                • Structured: PIN CODE: 781014, ISSUE: Health symptoms, SOURCE: Tube well
+              </p>
             </div>
           </form>
         </div>
