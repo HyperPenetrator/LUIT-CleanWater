@@ -14,9 +14,16 @@ def allowed_file(filename):
 def get_active_reports_by_district(district):
     """Get active reports for PHC's district"""
     try:
+        print(f"Fetching reports for district: {district}")
         reports = firebase_service.get_water_quality_reports(district)
+        print(f"Total reports found: {len(reports) if reports else 0}")
+        if reports:
+            print(f"Reports: {reports}")
+        
         # Show reports with status 'reported' or 'contaminated' that are still active
         active_reports = {k: v for k, v in reports.items() if v.get('status') in ['reported', 'contaminated'] and v.get('active') is True}
+        print(f"Active reports after filtering: {len(active_reports)}")
+        print(f"Active reports data: {active_reports}")
         
         return jsonify({
             'success': True,
@@ -24,6 +31,7 @@ def get_active_reports_by_district(district):
         }), 200
     
     except Exception as e:
+        print(f"Error in get_active_reports_by_district: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @phc_bp.route('/send-to-lab', methods=['POST'])

@@ -46,11 +46,15 @@ export default function PHCDashboard() {
 
   const fetchActiveReports = async () => {
     try {
+      console.log('Fetching active reports for district:', userDistrict)
       const response = await api.get(`/phc/active-reports/${userDistrict}`)
-      setActiveReports(Object.entries(response.data.data || {}).map(([id, data]) => ({
+      console.log('Active reports response:', response.data)
+      const reports = Object.entries(response.data.data || {}).map(([id, data]) => ({
         id,
         ...data
-      })))
+      }))
+      console.log('Processed reports:', reports)
+      setActiveReports(reports)
     } catch (err) {
       console.error('Error fetching active reports:', err)
       setError('Failed to load active reports')
