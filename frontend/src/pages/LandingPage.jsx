@@ -13,6 +13,7 @@ export default function LandingPage() {
   const [showStatusPopup, setShowStatusPopup] = useState(true)
   const [contaminatedAreas, setContaminatedAreas] = useState([])
   const [nearbyContaminatedAreas, setNearbyContaminatedAreas] = useState([])
+  const [locationStatus, setLocationStatus] = useState('loading') // loading, granted, denied
 
   // Haversine distance calculation (in km)
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -27,13 +28,27 @@ export default function LandingPage() {
   }
 
   useEffect(() => {
-    // Get user's location
+    // Get user's location for contamination alerts
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude } = position.coords
-        setUserLocation({ latitude, longitude })
-        fetchAreaStatus(latitude, longitude)
-      })
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords
+          console.log('Location granted:', { latitude, longitude })
+          setUserLocation({ latitude, longitude })
+          setLocationStatus('granted')
+          fetchAreaStatus(latitude, longitude)
+        },
+        (error) => {
+          console.log('Location permission denied or error:', error.message)
+          setLocationStatus('denied')
+          // Still fetch other data, just won't show contamination alerts
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 300000 // Cache location for 5 minutes
+        }
+      )
     }
     
     fetchActiveReports()
@@ -267,6 +282,23 @@ export default function LandingPage() {
             </div>
           )}
         </section>
+
+        {/* Location Permission Info */}
+        {locationStatus === 'denied' && (
+          <section className="mb-8">
+            <div className="card border-l-4 border-yellow-500 bg-yellow-50">
+              <div className="flex items-start gap-3">
+                <MapPin className="text-yellow-600 flex-shrink-0 mt-1" size={24} />
+                <div className="flex-1">
+                  <h3 className="font-bold text-yellow-800">📍 Enable Location for Safety Alerts</h3>
+                  <p className="text-sm text-yellow-700 mt-2">
+                    Please allow location access to receive real-time contaminated water alerts for areas within 2km of you. This helps keep you informed about water quality issues nearby.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Contaminated Areas Alert */}
         {nearbyContaminatedAreas.length > 0 && (
