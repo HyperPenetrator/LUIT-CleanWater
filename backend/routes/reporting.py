@@ -303,3 +303,125 @@ def get_sms_help():
     except Exception as e:
         print(f"❌ Error getting SMS instructions: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+@reporting_bp.route('/sms/webhook', methods=['POST'])
+def sms_webhook():
+    """
+    Webhook endpoint to receive SMS from external providers
+    Supports Twilio, AWS SNS, and generic formats
+    """
+    try:
+        # Get data from different providers
+        content_type = request.content_type
+        
+        print(f"📱 Received SMS webhook - Content-Type: {content_type}")
+        
+        # Twilio format
+        if 'application/x-www-form-urlencoded' in content_type:
+            from_number = request.form.get('From')
+            message_body = request.form.get('Body')
+            provider = 'twilio'
+            print(f"📱 Twilio SMS from {from_number}: {message_body[:50]}...")
+        
+        # JSON format (AWS SNS or custom)
+        elif 'application/json' in content_type:
+            data = request.get_json()
+            from_number = data.get('from') or data.get('phone')
+            message_body = data.get('message') or data.get('body') or data.get('Message')
+            provider = data.get('provider', 'custom')
+            print(f"📱 JSON SMS from {from_number}: {message_body[:50]}...")
+        
+        else:
+            print(f"❌ Unsupported content type: {content_type}")
+            return jsonify({
+                'success': False,
+                'error': 'Unsupported content type'
+            }), 400
+        
+        if not message_body:
+            print("❌ No message body found in webhook")
+            return jsonify({
+                'success': False,
+                'error': 'No message body found'
+            }), 400
+        
+        # Parse and save the SMS
+        parse_result = parse_sms_report(message_body)
+        
+        if not parse_result['success']:
+            print(f"❌ Failed to parse webhook SMS: {parse_result.get('error')}")
+            # Still return 200 to prevent retries
+            return jsonify({
+                'success': False,
+                'error': parse_result.get('error'),
+                'message': 'SMS format invalid. Please check instructions.'
+            }), 200
+        
+        # Validate and save
+        validation = validate_sms_data(parse_result['data'])
+        
+        if not validation['valid']:
+            print(f"❌ Webhook SMS validation failed: {validation.get('errors')}")
+            return jsonify({
+                'success': False,
+                'errors': validation.get('errors')
+            }), 200
+        
+        report_data = validation['data']
+        report_data['reportedBy'] = f'SMS:{from_number}' if from_number else 'SMS'
+        
+        # Save to database
+        doc_ref = firebase_service.db.collection('water_quality_reports').document()
+        doc_ref.set({
+            'problem': report_data.get('problem'),
+            'sourceType': report_data.get('sourceType'),
+            'pinCode': report_data.get('pinCode'),
+            'localityName': report_data.get('localityName', 'Unknown'),
+            'district': report_data.get('district', 'Unknown'),
+            'status': 'reported',
+            'reportedAt': datetime.now().isoformat(),
+            'reportedBy': report_data.get('reportedBy'),
+            'description': report_data.get('description', ''),
+            'active': True,
+            'upvotes': 0,
+            'verified': False
+        })
+        
+        print(f"✅ Webhook SMS saved: {doc_ref.id} from {from_number}")
+        
+        # Return success (Twilio/AWS expect 200 OK)
+        return jsonify({
+            'success': True,
+            'message': 'Report received successfully',
+            'reportId': doc_ref.id
+        }), 200
+    
+    except Exception as e:
+        print(f"❌ Webhook error: {str(e)}")
+        traceback.print_exc()
+        # Return 200 to prevent retries for permanent errors
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 200
+
+
+@reporting_bp.route('/sms/config', methods=['GET'])
+def get_sms_config():
+    """Get SMS configuration (phone number, provider info)"""
+    try:
+        from config import Config
+        
+        return jsonify({
+            'success': True,
+            'phone_number': Config.SMS_PHONE_NUMBER,
+            'provider': Config.SMS_PROVIDER,
+            'webhook_url': request.url_root + 'api/reporting/sms/webhook',
+            'instructions': 'Send SMS in either compact (WQ|PIN|ISSUE|SOURCE|DESC) or structured format',
+            'note': 'If manual mode, use the web interface to paste SMS content'
+        }), 200
+    
+    except Exception as e:
+        print(f"❌ Error getting SMS config: {str(e)}")
+        return jsonify({'error': str(e)}), 500
