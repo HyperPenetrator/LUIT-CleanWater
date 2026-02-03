@@ -1,5 +1,11 @@
 from flask import Blueprint, request, jsonify
 from services.firebase_service import firebase_service
+from services.sms_service import (
+    format_report_to_sms,
+    parse_sms_report,
+    validate_sms_data,
+    get_sms_instructions
+)
 from datetime import datetime
 import math
 import logging
@@ -162,3 +168,138 @@ def format_sms():
     
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+# ==================== SMS REPORTING ENDPOINTS ====================
+
+@reporting_bp.route('/sms/format', methods=['POST'])
+def get_sms_format():
+    """Format a report into SMS-copyable format"""
+    try:
+        data = request.get_json()
+        
+        print(f"📱 Formatting report to SMS: {data.get('pinCode')}")
+        
+        result = format_report_to_sms(data)
+        
+        if result['success']:
+            print(f"✅ Report formatted successfully for PIN {result.get('pincode')}")
+            return jsonify(result), 200
+        else:
+            print(f"❌ Failed to format report: {result.get('error')}")
+            return jsonify(result), 400
+    
+    except Exception as e:
+        print(f"❌ Error formatting SMS: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@reporting_bp.route('/sms/parse', methods=['POST'])
+def parse_incoming_sms():
+    """Parse incoming SMS and submit as report"""
+    try:
+        data = request.get_json()
+        sms_text = data.get('sms_text') or data.get('message', '')
+        
+        if not sms_text:
+            return jsonify({
+                'success': False,
+                'error': 'No SMS text provided',
+                'instructions': get_sms_instructions()
+            }), 400
+        
+        print(f"📱 Parsing incoming SMS: {sms_text[:50]}...")
+        
+        # Parse SMS
+        parse_result = parse_sms_report(sms_text)
+        
+        if not parse_result['success']:
+            print(f"❌ Failed to parse SMS: {parse_result.get('error')}")
+            return jsonify({
+                'success': False,
+                'error': parse_result.get('error'),
+                'format_detected': parse_result.get('format_detected'),
+                'instructions': get_sms_instructions()
+            }), 400
+        
+        # Validate parsed data
+        validation = validate_sms_data(parse_result['data'])
+        
+        if not validation['valid']:
+            print(f"❌ Validation failed: {validation.get('errors')}")
+            return jsonify({
+                'success': False,
+                'errors': validation.get('errors'),
+                'instructions': get_sms_instructions()
+            }), 400
+        
+        report_data = validation['data']
+        
+        # Save to database
+        try:
+            doc_ref = firebase_service.db.collection('water_quality_reports').document()
+            doc_ref.set({
+                'problem': report_data.get('problem'),
+                'sourceType': report_data.get('sourceType'),
+                'pinCode': report_data.get('pinCode'),
+                'localityName': report_data.get('localityName', 'Unknown'),
+                'district': report_data.get('district', 'Unknown'),
+                'status': 'reported',
+                'reportedAt': datetime.now().isoformat(),
+                'reportedBy': report_data.get('reportedBy', 'SMS'),
+                'description': report_data.get('description', ''),
+                'active': True,
+                'upvotes': 0,
+                'verified': False
+            })
+            
+            print(f"✅ SMS report saved successfully: {doc_ref.id}")
+            
+            return jsonify({
+                'success': True,
+                'message': f'Report received and saved successfully!',
+                'reportId': doc_ref.id,
+                'data': {
+                    'pinCode': report_data.get('pinCode'),
+                    'problem': report_data.get('problem'),
+                    'sourceType': report_data.get('sourceType'),
+                    'localityName': report_data.get('localityName'),
+                    'reportedAt': report_data.get('reportedAt')
+                }
+            }), 201
+        
+        except Exception as db_error:
+            print(f"❌ Database error: {str(db_error)}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to save report: {str(db_error)}',
+                'data': report_data
+            }), 500
+    
+    except Exception as e:
+        print(f"❌ Error parsing SMS: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'instructions': get_sms_instructions()
+        }), 500
+
+
+@reporting_bp.route('/sms/instructions', methods=['GET'])
+def get_sms_help():
+    """Get SMS format instructions"""
+    try:
+        print("📱 Returning SMS instructions")
+        return jsonify({
+            'success': True,
+            'instructions': get_sms_instructions(),
+            'formats': {
+                'compact': 'WQ|PINCODE|ISSUE|SOURCE|DESCRIPTION',
+                'structured': 'PIN CODE: XXX, ISSUE: YYY, SOURCE: ZZZ',
+                'example_compact': 'WQ|781014|Health symptoms|Tube well|Bad taste',
+                'example_structured': 'PIN CODE: 781014\nISSUE: Health symptoms\nSOURCE: Tube well'
+            }
+        }), 200
+    
+    except Exception as e:
+        print(f"❌ Error getting SMS instructions: {str(e)}")
+        return jsonify({'error': str(e)}), 500
