@@ -1,5 +1,13 @@
 from flask import Blueprint, request, jsonify
 from services.firebase_service import firebase_service
+from services.pincode_service import (
+    get_coordinates_from_pincode,
+    get_pincode_info,
+    search_by_locality,
+    search_by_district,
+    add_pincode,
+    batch_get_coordinates
+)
 from firebase_admin import firestore
 from datetime import datetime
 from werkzeug.utils import secure_filename
@@ -271,6 +279,151 @@ def debug_contaminated_areas():
             'total_assignments': len(debug_data),
             'data': debug_data
         }), 200
+
+# ==================== PIN CODE CONVERSION ENDPOINTS ====================
+
+@phc_bp.route('/pincode/coordinates/<pincode>', methods=['GET'])
+def get_pincode_coordinates(pincode):
+    """Get latitude and longitude for a PIN code"""
+    try:
+        print(f"🔍 Converting PIN code: {pincode}")
+        result = get_coordinates_from_pincode(pincode)
+        
+        if result['success']:
+            print(f"✅ PIN code {pincode} converted successfully")
+            return jsonify({
+                'success': True,
+                'data': {
+                    'pincode': pincode,
+                    'latitude': result['latitude'],
+                    'longitude': result['longitude'],
+                    'locality': result['locality'],
+                    'district': result['district']
+                }
+            }), 200
+        else:
+            print(f"❌ PIN code {pincode} not found: {result['error']}")
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 404
+    
+    except Exception as e:
+        print(f"❌ Error in pincode conversion: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@phc_bp.route('/pincode/batch-coordinates', methods=['POST'])
+def get_batch_pincode_coordinates():
+    """Get coordinates for multiple PIN codes"""
+    try:
+        data = request.json
+        pincodes = data.get('pincodes', [])
+        
+        if not pincodes:
+            return jsonify({'error': 'No PIN codes provided'}), 400
+        
+        print(f"🔍 Converting {len(pincodes)} PIN codes")
+        results = batch_get_coordinates(pincodes)
+        
+        return jsonify({
+            'success': True,
+            'total_requested': len(pincodes),
+            'data': results
+        }), 200
+    
+    except Exception as e:
+        print(f"❌ Error in batch pincode conversion: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@phc_bp.route('/pincode/search/locality/<locality>', methods=['GET'])
+def search_pincodes_by_locality(locality):
+    """Search PIN codes by locality name"""
+    try:
+        print(f"🔍 Searching PIN codes for locality: {locality}")
+        pincodes = search_by_locality(locality)
+        
+        if pincodes:
+            results = batch_get_coordinates(pincodes)
+            return jsonify({
+                'success': True,
+                'locality': locality,
+                'total_found': len(pincodes),
+                'data': results
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'locality': locality,
+                'error': f'No PIN codes found for locality: {locality}'
+            }), 404
+    
+    except Exception as e:
+        print(f"❌ Error searching locality: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@phc_bp.route('/pincode/search/district/<district>', methods=['GET'])
+def search_pincodes_by_district(district):
+    """Search PIN codes by district name"""
+    try:
+        print(f"🔍 Searching PIN codes for district: {district}")
+        pincodes = search_by_district(district)
+        
+        if pincodes:
+            results = batch_get_coordinates(pincodes)
+            return jsonify({
+                'success': True,
+                'district': district,
+                'total_found': len(pincodes),
+                'data': results
+            }), 200
+        else:
+            return jsonify({
+                'success': False,
+                'district': district,
+                'error': f'No PIN codes found for district: {district}'
+            }), 404
+    
+    except Exception as e:
+        print(f"❌ Error searching district: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@phc_bp.route('/pincode/add', methods=['POST'])
+def add_new_pincode():
+    """Add a new PIN code to the database"""
+    try:
+        data = request.json
+        pincode = data.get('pincode')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        locality = data.get('locality')
+        district = data.get('district')
+        
+        if not all([pincode, latitude, longitude, locality, district]):
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        print(f"➕ Adding new PIN code: {pincode}")
+        result = add_pincode(pincode, latitude, longitude, locality, district)
+        
+        if result['success']:
+            print(f"✅ PIN code {pincode} added successfully")
+            return jsonify({
+                'success': True,
+                'message': result['message']
+            }), 201
+        else:
+            print(f"❌ Failed to add PIN code {pincode}: {result['error']}")
+            return jsonify({
+                'success': False,
+                'error': result['error']
+            }), 400
+    
+    except Exception as e:
+        print(f"❌ Error adding PIN code: {str(e)}")
+        return jsonify({'error': str(e)}), 500
     
     except Exception as e:
         import logging
