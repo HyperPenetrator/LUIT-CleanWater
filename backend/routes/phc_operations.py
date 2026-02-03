@@ -49,7 +49,6 @@ def send_to_lab():
         problems = data.get('problems', [])
         sources = data.get('sources', [])
         description = data.get('description')
-        phc_notes = data.get('phcNotes')
         
         if not all([pin_code, locality_name, district, description]) or report_count < 5:
             return jsonify({'error': 'Missing required fields or insufficient reports (min 5)'}), 400
@@ -69,7 +68,6 @@ def send_to_lab():
             'problems': problems,
             'sources': sources,
             'description': description,
-            'phcNotes': phc_notes,
             'status': 'pending_lab_visit',
             'createdAt': datetime.now().isoformat(),
             'phcSubmittedAt': datetime.now().isoformat()

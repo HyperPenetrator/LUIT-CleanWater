@@ -18,8 +18,7 @@ export default function PHCDashboard() {
   const [selectedReport, setSelectedReport] = useState(null)
   const [showSendModal, setShowSendModal] = useState(false)
   const [sendFormData, setSendFormData] = useState({
-    description: '',
-    phcNotes: ''
+    description: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -170,14 +169,13 @@ export default function PHCDashboard() {
         reportIds: selectedReport.reports.map(r => r.id),
         problems: [...new Set(selectedReport.reports.map(r => r.problem))],
         sources: [...new Set(selectedReport.reports.map(r => r.sourceType))],
-        description: sendFormData.description,
-        phcNotes: sendFormData.phcNotes
+        description: sendFormData.description
       })
 
       if (response.data.success) {
         alert('Report sent to lab successfully!')
         setShowSendModal(false)
-        setSendFormData({ description: '', phcNotes: '' })
+        setSendFormData({ description: '' })
         setSelectedReport(null)
         fetchActiveReports()
       }
@@ -492,8 +490,19 @@ export default function PHCDashboard() {
       {showSendModal && selectedReport && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h2 className="text-2xl font-bold mb-4">Send Report to Lab</h2>
-            <p className="text-gray-600 mb-4">Area: <strong>{selectedReport.areaName}</strong></p>
+            <h2 className="text-2xl font-bold mb-4">Send to Testing Lab</h2>
+            
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-gray-700">
+                <strong>📌 PIN Code:</strong> {selectedReport.pinCode}
+              </p>
+              <p className="text-sm text-gray-700">
+                <strong>📍 Location:</strong> {selectedReport.locality}
+              </p>
+              <p className="text-sm text-gray-700">
+                <strong>📊 Reports:</strong> {selectedReport.count} ({selectedReport.severity})
+              </p>
+            </div>
 
             <div className="space-y-4">
               <div>
@@ -506,25 +515,9 @@ export default function PHCDashboard() {
                     ...prev,
                     description: e.target.value
                   }))}
-                  placeholder="Detailed description for the lab"
+                  placeholder="Detailed description for the testing lab team..."
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="4"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  PHC Notes
-                </label>
-                <textarea
-                  value={sendFormData.phcNotes}
-                  onChange={(e) => setSendFormData(prev => ({
-                    ...prev,
-                    phcNotes: e.target.value
-                  }))}
-                  placeholder="Additional notes"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  rows="3"
+                  rows="6"
                 />
               </div>
 
