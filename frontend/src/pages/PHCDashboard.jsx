@@ -51,16 +51,27 @@ export default function PHCDashboard() {
       fetchHotspots()
     }, 30000)
 
-    return () => clearInterval(hotspotsInterval)
+    // Auto-refresh sent to lab PINs every 30 seconds
+    const sentPinsInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing sent to lab PINs...')
+      fetchSentToLabPins()
+    }, 30000)
+
+    return () => {
+      clearInterval(hotspotsInterval)
+      clearInterval(sentPinsInterval)
+    }
   }, [])
 
   const fetchSentToLabPins = async () => {
     try {
+      console.log('📤 Fetching PINs already sent to lab...')
       const response = await api.get('/phc/contaminated-areas')
       const pins = Object.values(response.data.data || {}).map(area => area.pinCode)
+      console.log('✅ Sent to lab PINs updated:', pins)
       setSentToLabPins(pins)
     } catch (err) {
-      console.error('Error fetching sent to lab PINs:', err)
+      console.error('❌ Error fetching sent to lab PINs:', err)
     }
   }
 
@@ -237,6 +248,8 @@ export default function PHCDashboard() {
         setSendFormData({ description: '' })
         setSelectedReport(null)
         fetchActiveReports()
+        // Immediately update sentToLabPins to disable button
+        fetchSentToLabPins()
       }
     } catch (err) {
       console.error('❌ Failed to send to lab:', err)
