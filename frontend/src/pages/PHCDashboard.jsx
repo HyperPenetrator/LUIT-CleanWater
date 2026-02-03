@@ -172,6 +172,20 @@ export default function PHCDashboard() {
 
     setLoading(true)
     try {
+      // Get PHC's current location (coordinates of the contaminated area)
+      let latitude = null
+      let longitude = null
+      
+      if (navigator.geolocation) {
+        await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition((position) => {
+            latitude = position.coords.latitude
+            longitude = position.coords.longitude
+            resolve()
+          }, () => resolve())
+        })
+      }
+      
       const response = await api.post('/phc/send-to-lab', {
         pinCode: selectedReport.pinCode,
         localityName: selectedReport.locality,
@@ -181,7 +195,9 @@ export default function PHCDashboard() {
         reportIds: selectedReport.reports.map(r => r.id),
         problems: [...new Set(selectedReport.reports.map(r => r.problem))],
         sources: [...new Set(selectedReport.reports.map(r => r.sourceType))],
-        description: sendFormData.description
+        description: sendFormData.description,
+        latitude: latitude,
+        longitude: longitude
       })
 
       if (response.data.success) {

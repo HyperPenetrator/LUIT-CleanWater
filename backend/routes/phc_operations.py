@@ -50,9 +50,15 @@ def send_to_lab():
         problems = data.get('problems', [])
         sources = data.get('sources', [])
         description = data.get('description')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
         
         if not all([pin_code, locality_name, district, description]) or report_count < 5:
             return jsonify({'error': 'Missing required fields or insufficient reports (min 5)'}), 400
+        
+        # Get coordinates from reports (average of all report locations if available)
+        latitude = data.get('latitude') or None
+        longitude = data.get('longitude') or None
         
         # Update all reports to 'contaminated' status
         for report_id in report_ids:
@@ -70,6 +76,8 @@ def send_to_lab():
             'sources': sources,
             'description': description,
             'status': 'pending_lab_visit',
+            'latitude': latitude,
+            'longitude': longitude,
             'createdAt': datetime.now().isoformat(),
             'phcSubmittedAt': datetime.now().isoformat()
         }

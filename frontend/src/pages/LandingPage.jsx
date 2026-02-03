@@ -12,6 +12,19 @@ export default function LandingPage() {
   const [userLocation, setUserLocation] = useState(null)
   const [showStatusPopup, setShowStatusPopup] = useState(true)
   const [contaminatedAreas, setContaminatedAreas] = useState([])
+  const [nearbyContaminatedAreas, setNearbyContaminatedAreas] = useState([])
+
+  // Haversine distance calculation (in km)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371 // Earth radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180
+    const dLon = (lon2 - lon1) * Math.PI / 180
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2)
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+    return R * c
+  }
 
   useEffect(() => {
     // Get user's location
@@ -28,6 +41,13 @@ export default function LandingPage() {
     fetchStatistics()
     fetchContaminatedAreas()
   }, [])
+
+  // Refetch contaminated areas when user location updates
+  useEffect(() => {
+    if (userLocation) {
+      fetchContaminatedAreas()
+    }
+  }, [userLocation])
 
   const fetchAreaStatus = async (lat, lon) => {
     try {
@@ -87,7 +107,26 @@ export default function LandingPage() {
   const fetchContaminatedAreas = async () => {
     try {
       const response = await api.get('/phc/contaminated-areas')
-      setContaminatedAreas(Object.values(response.data.data || []))
+      const areas = Object.values(response.data.data || [])
+      setContaminatedAreas(areas)
+      
+      // Filter areas within 2km of user location
+      if (userLocation && areas.length > 0) {
+        const nearby = areas.filter(area => {
+          if (area.latitude && area.longitude) {
+            const distance = calculateDistance(
+              userLocation.latitude,
+              userLocation.longitude,
+              area.latitude,
+              area.longitude
+            )
+            area.distance = distance
+            return distance <= 2 // 2km radius
+          }
+          return false
+        })
+        setNearbyContaminatedAreas(nearby)
+      }
     } catch (error) {
       console.error('Error fetching contaminated areas:', error)
     }
@@ -230,24 +269,25 @@ export default function LandingPage() {
         </section>
 
         {/* Contaminated Areas Alert */}
-        {contaminatedAreas.length > 0 && (
+        {nearbyContaminatedAreas.length > 0 && (
           <section className="mb-12">
-            <h2 className="text-2xl font-bold mb-6 text-red-800">⚠️ Contaminated Areas - Testing in Progress</h2>
+            <h2 className="text-2xl font-bold mb-6 text-red-800">⚠️ Contaminated Water Alert - Within 2km</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {contaminatedAreas.map((area, idx) => (
+              {nearbyContaminatedAreas.map((area, idx) => (
                 <div key={idx} className="card border-l-4 border-red-600 bg-red-50">
                   <div className="flex items-start gap-3 mb-3">
                     <AlertTriangle className="text-red-600 flex-shrink-0 mt-1" size={24} />
                     <div className="flex-1">
                       <h3 className="font-bold text-red-800 text-lg">📌 PIN: {area.pinCode}</h3>
                       <p className="text-sm text-red-700">{area.localityName}, {area.district}</p>
+                      <p className="text-xs text-red-600 mt-1">📍 {area.distance?.toFixed(1)}km from you</p>
                     </div>
                   </div>
                   <div className="bg-white rounded p-2 mb-2">
                     <p className="text-xs text-gray-600 mb-1"><strong>Status:</strong> Testing Lab Visit in Progress</p>
                     <p className="text-xs text-gray-600"><strong>Reports:</strong> {area.reportCount} ({area.severity})</p>
                   </div>
-                  <p className="text-sm text-red-700">Please avoid using water from this area</p>
+                  <p className="text-sm text-red-700 font-medium">⚠️ Please avoid using water from this area</p>
                 </div>
               ))}
             </div>
